@@ -21,6 +21,10 @@ extern "C"
 
 	DLL_API void DoubleAxpy(double *Z, double alpha, int n, double *X, double *Y);
 
+	DLL_API bool DoubleSolveNoPreconCG(double *X,
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B,
+		double convRatioTolerance);
+
 	DLL_API void DoubleDeleteCSR(int *APtrsP, int *AIndexsP, double *AValuesP);
 
 	// Note: 内部でメモリ割り当てを行っているので使用後DeleteCSRを呼び出す必要がある
@@ -32,10 +36,30 @@ extern "C"
 
 	DLL_API bool DoubleSolvePreconditionedCG(double *X,
 		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B,
-		int LUIndexsLength, int *LUPtrs, int *LUIndexs, double *LUValues);
+		int LUIndexsLength, int *LUPtrs, int *LUIndexs, double *LUValues,
+		double convRatioTolerance);
 
 	DLL_API bool DoubleSolveCG(double *X,
-		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B, int fillinLevel);
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B, int fillinLevel,
+		double convRatioTolerance);
+
+	DLL_API void DoubleCalcILUWithPivoting(int *LUIndexsLengthP, int **LUPtrsP, int **LUIndexsP, double **LUValuesP,
+		int *pivot, int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, int fillinLevel);
+
+	DLL_API bool DoubleSolveCGWithPivoting(double *X,
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B, int fillinLevel,
+		double convRatioTolerance);
+
+	DLL_API void DoubleCalcIC(int *LUIndexsLengthP, int **LUPtrsP, int **LUIndexsP, double **LUValuesP,
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues);
+
+	DLL_API bool DoubleSolveICCG(double *X,
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B,
+		double convRatioTolerance);
+		
+	DLL_API bool DoubleSolveNoPreconBiCGSTAB(double *X,
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B,
+		double convRatioTolerance);
 
 	//////////////////////////////////////////////////////////////////////////
 	// ComplexLinear
@@ -49,6 +73,10 @@ extern "C"
 
 	DLL_API void ComplexAxpy(__complex *Z, __complex alpha, int n, __complex *X, __complex *Y);
 
+	DLL_API bool ComplexSolveNoPreconCOCG(__complex *X,
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
+		double convRatioTolerance);
+
 	DLL_API void ComplexDeleteCSR(int *APtrsP, int *AIndexsP, __complex *AValuesP);
 
 	// Note: 内部でメモリ割り当てを行っているので使用後DeleteCSRを呼び出す必要がある
@@ -60,9 +88,21 @@ extern "C"
 
 	DLL_API bool ComplexSolvePreconditionedCOCG(__complex *X,
 		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
-		int LUIndexsLength, int *LUPtrs, int *LUIndexs, __complex *LUValues);
+		int LUIndexsLength, int *LUPtrs, int *LUIndexs, __complex *LUValues,
+		double convRatioTolerance);
 
 	DLL_API bool ComplexSolveCOCG(__complex *X,
-		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B, int fillinLevel);
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B, int fillinLevel,
+		double convRatioTolerance);
 
+	DLL_API void ComplexCalcIC(int *LUIndexsLengthP, int **LUPtrsP, int **LUIndexsP, __complex **LUValuesP,
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues);
+
+	DLL_API bool ComplexSolveICCOCG(__complex *X,
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
+		double convRatioTolerance);
+
+	DLL_API bool ComplexSolveNoPreconBiCGSTAB(__complex *X,
+		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
+		double convRatioTolerance);
 }
