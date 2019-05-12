@@ -4,8 +4,9 @@
 #include <assert.h>
 #include "IvyFEM.Native.h"
 #include "Constants.h"
+#include "IvyFEM.Native.Internal.h"
 
-static __complex __ComplexDotc(int n, __complex *X, __complex *Y)
+__complex __ComplexDotc(int n, __complex *X, __complex *Y)
 {
 	__complex sum = 0;
 	for (int i = 0; i < n; i++)
@@ -62,96 +63,6 @@ void ComplexAxpy(__complex *Z, __complex alpha, int n, __complex *X, __complex *
 	{
 		Z[i] = alpha * X[i] + Y[i];
 	}
-}
-
-bool ComplexSolveNoPreconCOCG(__complex *X,
-	int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
-	double convRatioTolerance)
-{
-	double convRatio = convRatioTolerance;
-	double tolerance = convRatio;
-	int maxIter = MaxIter;
-	__complex *r = new __complex[n];
-	__complex *p = new __complex[n];
-	__complex *Ap = new __complex[n];
-	__complex *dummy = new __complex[n];
-#define __FINALIZE \
-delete[] r; \
-delete[] p; \
-delete[] Ap; \
-delete[] dummy; \
-fflush(stdout);
-
-	int iter = 0;
-
-	memset(X, 0, n * sizeof(__complex));
-	memset(r, 0, n * sizeof(__complex));
-	memset(p, 0, n * sizeof(__complex));
-	memset(dummy, 0, n * sizeof(__complex));
-
-	memcpy(r, B, n * sizeof(__complex));
-
-	double sqInvNormRes0;
-	{
-		double sqNormRes0 = std::real(__ComplexDotc(n, r, r));
-		if (sqNormRes0 < PrecisionLowerLimit)
-		{
-			convRatio = 0;
-			printf("iter = %d norm: %e\r\n", iter, convRatio);
-
-			__FINALIZE
-			return true;
-		}
-		sqInvNormRes0 = 1.0 / sqNormRes0;
-	}
-
-	memcpy(p, r, n * sizeof(__complex));
-	__complex rr = __ComplexDotu(n, r, r);
-
-	for (iter = 0; iter < maxIter; iter++)
-	{
-		// Ap = A * p;
-		ComplexMV(Ap,
-			1.0, n, AIndexsLength, APtrs, AIndexs, AValues, p,
-			0.0, dummy);
-
-		__complex alpha;
-		{
-			__complex pAp = __ComplexDotu(n, p, Ap);
-			alpha = rr / pAp;
-		}
-		ComplexAxpy(r, -alpha, n, Ap, r);
-		ComplexAxpy(X, alpha, n, p, X);
-
-		{
-			double sqNormRes = std::real(__ComplexDotc(n, r, r));
-			if (sqNormRes * sqInvNormRes0 < tolerance * tolerance)
-			{
-				convRatio = sqrt(sqNormRes * sqInvNormRes0);
-				printf("iter = %d norm: %e\r\n", iter, convRatio);
-
-				__FINALIZE
-				return true;
-			}
-		}
-
-		__complex rrPrev = rr;
-		rr = __ComplexDotu(n, r, r);
-		__complex beta = rr / rrPrev;
-
-		ComplexAxpy(p, beta, n, p, r);
-	}
-
-	{
-		double sqNormRes = std::real(__ComplexDotc(n, r, r));
-		convRatio = sqrt(sqNormRes * sqInvNormRes0);
-		printf("iter = %d norm: %e\r\n", iter, convRatio);
-	}
-	printf("Not converged\r\n");
-
-	__FINALIZE
-#undef __FINALIZE
-	return false;
 }
 
 static void ComplexGetCSR(int n, int *AIndexsLengthP, int **APtrsP, int **AIndexsP, __complex **AValuesP,
@@ -343,126 +254,153 @@ void ComplexSolveLU(
 	}
 }
 
-bool ComplexSolvePreconditionedCOCG(__complex *X,
-	int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
-	int LUIndexsLength, int *LUPtrs, int *LUIndexs, __complex *LUValues,
-	double convRatioTolerance)
+static void __ComplexCalcILUWithPivoting(
+    int n, std::map<int, __complex>* LUIndexValues, int* pivot, int fillinLevel)
 {
-	double convRatio = convRatioTolerance;
-	double tolerance = convRatio;
-	int maxIter = MaxIter;
-	__complex *r = new __complex[n];
-	__complex *z = new __complex[n];
-	__complex *p = new __complex[n];
-	__complex *Ap = new __complex[n];
-	__complex *dummy = new __complex[n];
-#define __FINALIZE \
-delete[] r; \
-delete[] z; \
-delete[] p; \
-delete[] Ap; \
-delete[] dummy;
+    for (int row = 0; row < n; row++)
+    {
+        pivot[row] = row;
+    }
+    int* level = new int[n * n];
+    for (int row = 0; row < n; row++)
+    {
+        for (int col = 0; col < n; col++)
+        {
+            level[row + col * n] = LUIndexValues[row].find(col) != LUIndexValues[row].end() ? // LU[row, col]
+                0 : (fillinLevel + 1);
+        }
+    }
 
-	int iter = 0;
+    for (int k = 0; k < (n - 1); k++)
+    {
+        int p = k;
+        {
+            double max = 0;
+            {
+                __complex LUkk = 0;
+                auto LUkkItr = LUIndexValues[k].find(k); // LU[k, k]
+                if (LUkkItr != LUIndexValues[k].end())
+                {
+                    LUkk = (*LUkkItr).second;
+                }
+                max = std::abs(LUkk);
+            }
+            for (int i = k + 1; i < n; i++)
+            {
+                __complex LUik;
+                {
+                    auto LUikItr = LUIndexValues[i].find(k);
+                    if (LUikItr == LUIndexValues[i].end())
+                    {
+                        continue;
+                    }
+                    LUik = (*LUikItr).second;
+                }
+                double abs = std::abs(LUik); // LU[i, k]
+                if (abs > max)
+                {
+                    max = abs;
+                    p = i;
+                }
+            }
+        }
+        if (k != p)
+        {
+            {
+                int tmp = pivot[k];
+                pivot[k] = pivot[p];
+                pivot[p] = tmp;
+            }
+            {
+                std::map<int, __complex> tmp = LUIndexValues[k];
+                LUIndexValues[k] = LUIndexValues[p];
+                LUIndexValues[p] = tmp;
+            }
+            for (int j = 0; j < n; j++)
+            {
+                int tmp = level[k + j * n];
+                level[k + j * n] = level[p + j * n];
+                level[p + j * n] = tmp;
+            }
+        }
+        for (int i = k + 1; i < n; i++)
+        {
+            if (level[i + k * n] > fillinLevel)
+            {
+                continue;
+            }
+            __complex LUik;
+            {
+                auto LUkkItr = LUIndexValues[k].find(k);
+                if (LUkkItr == LUIndexValues[k].end())
+                {
+                    printf("__DoubleCalcILUWithPivoting divide by zero\r\n");
+                    fflush(stdout);
+                    throw;
+                }
+                auto LUikItr = LUIndexValues[i].find(k);
+                if (LUikItr == LUIndexValues[i].end())
+                {
+                    continue;
+                }
+                (*LUikItr).second /= (*LUkkItr).second; // LU[i, k] LU[k, k]
+                LUik = (*LUikItr).second;
+            }
+            for (auto pair : LUIndexValues[k])
+            {
+                int j = pair.first;
+                __complex LUkj = pair.second;
+                if (j >= k + 1 && j < n)
+                {
 
-	memset(X, 0, n * sizeof(__complex));
-	memset(r, 0, n * sizeof(__complex));
-	memset(z, 0, n * sizeof(__complex));
-	memset(p, 0, n * sizeof(__complex));
-	memset(dummy, 0, n * sizeof(__complex));
+                }
+                else
+                {
+                    continue;
+                }
+                level[i + j * n] = min(level[i + j * n], level[i + k * n] + level[k + j * n] + 1);
+                if (level[i + j * n] <= fillinLevel)
+                {
+                    // LU[i, j] : ƒL[‚ª‚È‚¯‚ê‚Î¶¬‚³‚ê‚é
+                    LUIndexValues[i][j] -= LUik * LUkj; // LU[i, k] LU[k, j]
+                }
+            }
+        }
+    }
 
-	memcpy(r, B, n * sizeof(__complex));
-
-	double sqInvNormRes0;
-	{
-		double sqNormRes0 = std::real(__ComplexDotc(n, r, r));
-		if (sqNormRes0 < PrecisionLowerLimit)
-		{
-			convRatio = 0;
-			printf("iter = %d norm: %e\r\n", iter, convRatio);
-
-			__FINALIZE
-				return true;
-		}
-		sqInvNormRes0 = 1.0 / sqNormRes0;
-	}
-
-	ComplexSolveLU(z, n, LUIndexsLength, LUPtrs, LUIndexs, LUValues, r);
-
-	memcpy(p, z, n * sizeof(__complex));
-	__complex rz = __ComplexDotu(n, r, z);
-
-	for (iter = 0; iter < maxIter; iter++)
-	{
-		// Ap = A * p;
-		ComplexMV(Ap,
-			1.0, n, AIndexsLength, APtrs, AIndexs, AValues, p,
-			0.0, dummy);
-
-		__complex alpha;
-		{
-			__complex pAp = __ComplexDotu(n, p, Ap);
-			alpha = rz / pAp;
-		}
-		ComplexAxpy(r, -alpha, n, Ap, r);
-		ComplexAxpy(X, alpha, n, p, X);
-
-		{
-			double sqNormRes = std::real(__ComplexDotc(n, r, r));
-			if (sqNormRes * sqInvNormRes0 < tolerance * tolerance)
-			{
-				convRatio = sqrt(sqNormRes * sqInvNormRes0);
-				printf("iter = %d norm: %e\r\n", iter, convRatio);
-
-				__FINALIZE
-				return true;
-			}
-		}
-
-		ComplexSolveLU(z, n, LUIndexsLength, LUPtrs, LUIndexs, LUValues, r);
-
-		__complex rzPrev = rz;
-		rz = __ComplexDotu(n, r, z);
-		__complex beta = rz / rzPrev;
-
-		ComplexAxpy(p, beta, n, p, z);
-	}
-
-	{
-		double sqNormRes = std::real(__ComplexDotc(n, r, r));
-		convRatio = sqrt(sqNormRes * sqInvNormRes0);
-		printf("iter = %d norm: %e\r\n", iter, convRatio);
-	}
-	printf("Not converged\r\n");
-
-	__FINALIZE
-#undef __FINALIZE
-	return false;
+    delete[] level;
 }
 
-bool ComplexSolveCOCG(__complex *X,
-	int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B, int fillinLevel,
-	double convRatioTolerance)
+void ComplexCalcILUWithPivoting(int* LUIndexsLengthP, int** LUPtrsP, int** LUIndexsP, __complex** LUValuesP,
+    int* pivot, int n, int AIndexsLength, int* APtrs, int* AIndexs, __complex* AValues, int fillinLevel)
 {
-	int t;
-	int LUIndexsLength = 0;
-	int *LUPtrs = NULL;
-	int *LUIndexs = NULL;
-	__complex *LUValues = NULL;
-	t = GetTickCount();
-	ComplexCalcILU(&LUIndexsLength, &LUPtrs, &LUIndexs, &LUValues,
-		n, AIndexsLength, APtrs, AIndexs, AValues, fillinLevel);
-	printf("    1: t = %d\r\n", GetTickCount() - t);
-	t = GetTickCount();
-	bool success = ComplexSolvePreconditionedCOCG(
-		X,
-		n, AIndexsLength, APtrs, AIndexs, AValues, B,
-		LUIndexsLength, LUPtrs, LUIndexs, LUValues,
-		convRatioTolerance);
-	ComplexDeleteCSR(LUPtrs, LUIndexs, LUValues);
-	printf("    2: t = %d\r\n", GetTickCount() - t);
-	fflush(stdout);
-	return success;
+    std::map<int, __complex>* LUIndexValues = new std::map<int, __complex>[n];
+    for (int row = 0; row < n; row++)
+    {
+        int sPtr = APtrs[row];
+        int ePtr = APtrs[row + 1]; // Note: APtr size is n + 1, APtr[n + 1] is always AIndexsLength
+        for (int iPtr = sPtr; iPtr < ePtr; iPtr++)
+        {
+            int col = AIndexs[iPtr];
+            __complex value = AValues[iPtr];
+            LUIndexValues[row].insert(std::make_pair(col, value)); // LU[row, col]
+        }
+    }
+
+    __ComplexCalcILUWithPivoting(n, LUIndexValues, pivot, fillinLevel);
+
+    int LUIndexsLength = 0;
+    int* LUPtrs = NULL;
+    int* LUIndexs = NULL;
+    __complex* LUValues = NULL;
+    ComplexGetCSR(n, &LUIndexsLength, &LUPtrs, &LUIndexs, &LUValues, LUIndexValues);
+
+    *LUIndexsLengthP = LUIndexsLength;
+    *LUPtrsP = LUPtrs;
+    *LUIndexsP = LUIndexs;
+    *LUValuesP = LUValues;
+
+    delete[] LUIndexValues;
 }
 
 static void __ComplexCalcIC(
@@ -594,142 +532,4 @@ void ComplexCalcIC(int *LUIndexsLengthP, int **LUPtrsP, int **LUIndexsP, __compl
 	delete[] AIndexValues;
 }
 
-bool ComplexSolveICCOCG(__complex *X,
-	int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
-	double convRatioTolerance)
-{
-	int t;
-	int LUIndexsLength = 0;
-	int *LUPtrs = NULL;
-	int *LUIndexs = NULL;
-	__complex *LUValues = NULL;
-	t = GetTickCount();
-	ComplexCalcIC(&LUIndexsLength, &LUPtrs, &LUIndexs, &LUValues,
-		n, AIndexsLength, APtrs, AIndexs, AValues);
-	printf("    1: t = %d\r\n", GetTickCount() - t);
-	t = GetTickCount();
-	bool success = ComplexSolvePreconditionedCOCG(
-		X,
-		n, AIndexsLength, APtrs, AIndexs, AValues, B,
-		LUIndexsLength, LUPtrs, LUIndexs, LUValues,
-		convRatioTolerance);
-	ComplexDeleteCSR(LUPtrs, LUIndexs, LUValues);
-	printf("    2: t = %d\r\n", GetTickCount() - t);
-	fflush(stdout);
-	return success;
-}
 
-bool ComplexSolveNoPreconBiCGSTAB(__complex *X,
-	int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
-	double convRatioTolerance)
-{
-	double convRatio = convRatioTolerance;
-	double tolerance = convRatio;
-	int maxIter = MaxIter;
-	__complex *r = new __complex[n];
-	__complex *r0 = new __complex[n];
-	__complex *p = new __complex[n];
-	__complex *s = new __complex[n];
-	__complex *Ap = new __complex[n];
-	__complex *As = new __complex[n];
-	__complex *dummy = new __complex[n];
-#define __FINALIZE \
-delete[] r; \
-delete[] r0; \
-delete[] p; \
-delete[] s; \
-delete[] Ap; \
-delete[] As; \
-delete[] dummy; \
-fflush(stdout);
-
-	int iter = 0;
-
-	memset(X, 0, n * sizeof(__complex));
-	memset(r, 0, n * sizeof(__complex));
-	memset(r0, 0, n * sizeof(__complex));
-	memset(p, 0, n * sizeof(__complex));
-	memset(s, 0, n * sizeof(__complex));
-	memset(dummy, 0, n * sizeof(__complex));
-
-	memcpy(r, B, n * sizeof(__complex));
-
-	double sqInvNormRes0;
-	{
-		double sqNormRes0 = std::real(__ComplexDotc(n, r, r));
-		if (sqNormRes0 < PrecisionLowerLimit)
-		{
-			convRatio = 0;
-			printf("iter = %d norm: %e\r\n", iter, convRatio);
-
-			__FINALIZE
-			return true;
-		}
-		sqInvNormRes0 = 1.0 / sqNormRes0;
-	}
-
-	memcpy(r0, r, n * sizeof(__complex));
-	memcpy(p, r, n * sizeof(__complex));
-	__complex r0r = __ComplexDotc(n, r0, r);
-
-	for (iter = 0; iter < maxIter; iter++)
-	{
-		// Ap = A * p;
-		ComplexMV(Ap,
-			1.0, n, AIndexsLength, APtrs, AIndexs, AValues, p,
-			0.0, dummy);
-		__complex alpha;
-		{
-			__complex denominator = __ComplexDotc(n, r0, Ap);
-			alpha = r0r / denominator;
-		}
-		ComplexAxpy(s, -alpha, n, Ap, r);
-
-		// As = A * s;
-		ComplexMV(As,
-			1.0, n, AIndexsLength, APtrs, AIndexs, AValues, s,
-			0.0, dummy);
-		__complex omega;
-		{
-			__complex denominator = __ComplexDotc(n, As, As);
-			__complex numerator = __ComplexDotc(n, s, As);
-			omega = numerator / denominator;
-		}
-
-		ComplexAxpy(X, alpha, n, p, X);
-		ComplexAxpy(X, omega, n, s, X);
-		ComplexAxpy(r, -omega, n, As, s);
-
-		{
-			double sqNormRes = std::real(__ComplexDotc(n, r, r));
-			if (sqNormRes * sqInvNormRes0 < tolerance * tolerance)
-			{
-				convRatio = sqrt(sqNormRes * sqInvNormRes0);
-				printf("iter = %d norm: %e\r\n", iter, convRatio);
-
-				__FINALIZE
-				return true;
-			}
-		}
-
-		__complex beta;
-		{
-			__complex r0rPrev = r0r;
-			r0r = __ComplexDotc(n, r0, r);
-			beta = (r0r * alpha) / (r0rPrev * omega);
-		}
-		ComplexAxpy(p, beta, n, p, r);
-		ComplexAxpy(p, -beta * omega, n, Ap, p);
-	}
-
-	{
-		double sqNormRes = std::real(__ComplexDotc(n, r, r));
-		convRatio = sqrt(sqNormRes * sqInvNormRes0);
-		printf("iter = %d norm: %e\r\n", iter, convRatio);
-	}
-	printf("Not converged\r\n");
-
-	__FINALIZE
-#undef __FINALIZE
-	return false;
-}

@@ -34,15 +34,6 @@ extern "C"
 	DLL_API void DoubleSolveLU(
 		double *X, int n, int LUIndexsLength, int *LUPtr, int *LUIndexs, double *LUValues, double *B);
 
-	DLL_API bool DoubleSolvePreconditionedCG(double *X,
-		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B,
-		int LUIndexsLength, int *LUPtrs, int *LUIndexs, double *LUValues,
-		double convRatioTolerance);
-
-	DLL_API bool DoubleSolveCG(double *X,
-		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B, int fillinLevel,
-		double convRatioTolerance);
-
 	DLL_API void DoubleCalcILUWithPivoting(int *LUIndexsLengthP, int **LUPtrsP, int **LUIndexsP, double **LUValuesP,
 		int *pivot, int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, int fillinLevel);
 
@@ -53,15 +44,41 @@ extern "C"
 	DLL_API void DoubleCalcIC(int *LUIndexsLengthP, int **LUPtrsP, int **LUIndexsP, double **LUValuesP,
 		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues);
 
-	DLL_API bool DoubleSolveICCG(double *X,
+    ////////////////////////////////////////////////////
+    // DoubleCG
+    DLL_API bool DoubleSolvePreconditionedCG(double* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, double* AValues, double* B,
+        int LUIndexsLength, int* LUPtrs, int* LUIndexs, double* LUValues,
+        double convRatioTolerance);
+
+    DLL_API bool DoubleSolveCG(double* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, double* AValues, double* B, int fillinLevel,
+        double convRatioTolerance);
+
+    DLL_API bool DoubleSolveICCG(double *X,
 		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B,
 		double convRatioTolerance);
 		
-	DLL_API bool DoubleSolveNoPreconBiCGSTAB(double *X,
+    ////////////////////////////////////////////////////
+    // DoubleBiCGSTAB
+    DLL_API bool DoubleSolveNoPreconBiCGSTAB(double *X,
 		int n, int AIndexsLength, int *APtrs, int *AIndexs, double *AValues, double *B,
 		double convRatioTolerance);
 
-	//////////////////////////////////////////////////////////////////////////
+    DLL_API bool DoubleSolvePreconditionedBiCGSTAB(double* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, double* AValues, double* B,
+        int LUIndexsLength, int* LUPtrs, int* LUIndexs, double* LUValues,
+        double convRatioTolerance);
+
+    DLL_API bool DoubleSolveBiCGSTAB(double* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, double* AValues, double* B, int fillinLevel,
+        double convRatioTolerance);
+
+    DLL_API bool DoubleSolveBiCGSTABWithPivoting(double* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, double* AValues, double* B, int fillinLevel,
+        double convRatioTolerance);
+
+    //////////////////////////////////////////////////////////////////////////
 	// ComplexLinear
 	DLL_API void ComplexDotc(__complex *ret, int n, __complex *X, __complex *Y);
 
@@ -86,23 +103,43 @@ extern "C"
 	DLL_API void ComplexSolveLU(
 		__complex *X, int n, int LUIndexsLength, int *LUPtr, int *LUIndexs, __complex *LUValues, __complex *B);
 
-	DLL_API bool ComplexSolvePreconditionedCOCG(__complex *X,
-		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
-		int LUIndexsLength, int *LUPtrs, int *LUIndexs, __complex *LUValues,
-		double convRatioTolerance);
-
-	DLL_API bool ComplexSolveCOCG(__complex *X,
-		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B, int fillinLevel,
-		double convRatioTolerance);
+    DLL_API void ComplexCalcILUWithPivoting(int* LUIndexsLengthP, int** LUPtrsP, int** LUIndexsP, __complex** LUValuesP,
+        int* pivot, int n, int AIndexsLength, int* APtrs, int* AIndexs, __complex* AValues, int fillinLevel);
 
 	DLL_API void ComplexCalcIC(int *LUIndexsLengthP, int **LUPtrsP, int **LUIndexsP, __complex **LUValuesP,
 		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues);
 
-	DLL_API bool ComplexSolveICCOCG(__complex *X,
+    ////////////////////////////////////////////////////
+    // ComplexCOCG
+    DLL_API bool ComplexSolvePreconditionedCOCG(__complex* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, __complex* AValues, __complex* B,
+        int LUIndexsLength, int* LUPtrs, int* LUIndexs, __complex* LUValues,
+        double convRatioTolerance);
+
+    DLL_API bool ComplexSolveCOCG(__complex* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, __complex* AValues, __complex* B, int fillinLevel,
+        double convRatioTolerance);
+
+    DLL_API bool ComplexSolveICCOCG(__complex *X,
 		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
 		double convRatioTolerance);
 
-	DLL_API bool ComplexSolveNoPreconBiCGSTAB(__complex *X,
+    ////////////////////////////////////////////////////
+    // ComplexBiCGSTAB
+    DLL_API bool ComplexSolveNoPreconBiCGSTAB(__complex *X,
 		int n, int AIndexsLength, int *APtrs, int *AIndexs, __complex *AValues, __complex *B,
 		double convRatioTolerance);
+
+    DLL_API bool ComplexSolvePreconditionedBiCGSTAB(__complex* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, __complex* AValues, __complex* B,
+        int LUIndexsLength, int* LUPtrs, int* LUIndexs, __complex* LUValues,
+        double convRatioTolerance);
+
+    DLL_API bool ComplexSolveBiCGSTAB(__complex* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, __complex* AValues, __complex* B, int fillinLevel,
+        double convRatioTolerance);
+
+    DLL_API bool ComplexSolveBiCGSTABWithPivoting(__complex* X,
+        int n, int AIndexsLength, int* APtrs, int* AIndexs, __complex* AValues, __complex* B, int fillinLevel,
+        double convRatioTolerance);
 }

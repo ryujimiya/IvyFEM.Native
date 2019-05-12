@@ -152,16 +152,25 @@
   <ItemGroup>
     <ClInclude Include="Constants.h" />
     <ClInclude Include="IvyFEM.Native.h" />
+    <ClInclude Include="IvyFEM.Native.Internal.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="resource1.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ComplexLinear.cpp" />
+    <ClCompile Include="Linear.Complex.BiCGSTAB.cpp" />
+    <ClCompile Include="Linear.Complex.COCG.cpp" />
+    <ClCompile Include="Linear.Complex.NoPreconBiCGSTAB.cpp" />
+    <ClCompile Include="Linear.Complex.NoPreconCOCG.cpp" />
+    <ClCompile Include="Linear.Complex.Utls.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="IvyFEM.Native.cpp" />
-    <ClCompile Include="DoubleLinear.cpp" />
+    <ClCompile Include="Linear.Double.BiCGSTAB.cpp" />
+    <ClCompile Include="Linear.Double.CG.cpp" />
+    <ClCompile Include="Linear.Double.NoPreconBiCGSTAB.cpp" />
+    <ClCompile Include="Linear.Double.NoPreconCG.cpp" />
+    <ClCompile Include="Linear.Double.Utils.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
