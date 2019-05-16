@@ -57,7 +57,7 @@ fflush(stdout);
         if (sqNormRes0 < PrecisionLowerLimit)
         {
             convRatio = 0;
-            printf("iter = %d norm: %e\r\n", iter, convRatio);
+            printf("iter = %d norm: %e\n", iter, convRatio);
 
             __FINALIZE
                 return true;
@@ -109,7 +109,7 @@ fflush(stdout);
             if (sqNormRes * sqInvNormRes0 < tolerance * tolerance)
             {
                 convRatio = sqrt(sqNormRes * sqInvNormRes0);
-                printf("iter = %d norm: %e\r\n", iter, convRatio);
+                printf("iter = %d norm: %e\n", iter, convRatio);
 
                 __FINALIZE
                     return true;
@@ -129,9 +129,9 @@ fflush(stdout);
     {
         double sqNormRes = std::real(__ComplexDotc(n, r, r));
         convRatio = sqrt(sqNormRes * sqInvNormRes0);
-        printf("iter = %d norm: %e\r\n", iter, convRatio);
+        printf("iter = %d norm: %e\n", iter, convRatio);
     }
-    printf("Not converged\r\n");
+    printf("Not converged\n");
 
     __FINALIZE
 #undef __FINALIZE
@@ -157,7 +157,7 @@ bool ComplexSolveBiCGSTAB(__complex* X,
     t = GetTickCount64();
     ComplexCalcILU(&LUIndexsLength, &LUPtrs, &LUIndexs, &LUValues,
         n, AIndexsLength, APtrs, AIndexs, AValues, fillinLevel);
-    printf("    1: t = %lld\r\n", GetTickCount64() - t);
+    printf("    1: t = %lld\n", GetTickCount64() - t);
     t = GetTickCount64();
     bool success = ComplexSolvePreconditionedBiCGSTAB(
         X,
@@ -165,7 +165,7 @@ bool ComplexSolveBiCGSTAB(__complex* X,
         LUIndexsLength, LUPtrs, LUIndexs, LUValues,
         convRatioTolerance);
     ComplexDeleteCSR(LUPtrs, LUIndexs, LUValues);
-    printf("    2: t = %lld\r\n", GetTickCount64() - t);
+    printf("    2: t = %lld\n", GetTickCount64() - t);
     fflush(stdout);
     return success;
 }
@@ -213,7 +213,7 @@ bool ComplexSolveBiCGSTABWithPivoting(__complex* X,
     {
         pivotingB[i] = B[pivot[i]];
     }
-    printf("    1: t = %lld\r\n", GetTickCount64() - t);
+    printf("    1: t = %lld\n", GetTickCount64() - t);
     t = GetTickCount64();
     bool success = ComplexSolvePreconditionedBiCGSTAB(
         X,
@@ -221,7 +221,7 @@ bool ComplexSolveBiCGSTABWithPivoting(__complex* X,
         LUIndexsLength, LUPtrs, LUIndexs, LUValues,
         convRatioTolerance);
     ComplexDeleteCSR(LUPtrs, LUIndexs, LUValues);
-    printf("    2: t = %lld\r\n", GetTickCount64() - t);
+    printf("    2: t = %lld\n", GetTickCount64() - t);
     fflush(stdout);
 
     delete[] pivot;

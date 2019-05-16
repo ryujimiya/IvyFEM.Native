@@ -47,7 +47,7 @@ fflush(stdout);
         if (sqNormRes0 < PrecisionLowerLimit)
         {
             convRatio = 0;
-            printf("iter = %d norm: %e\r\n", iter, convRatio);
+            printf("iter = %d norm: %e\n", iter, convRatio);
 
             __FINALIZE
                 return true;
@@ -92,7 +92,7 @@ fflush(stdout);
             if (sqNormRes * sqInvNormRes0 < tolerance * tolerance)
             {
                 convRatio = sqrt(sqNormRes * sqInvNormRes0);
-                printf("iter = %d norm: %e\r\n", iter, convRatio);
+                printf("iter = %d norm: %e\n", iter, convRatio);
 
                 __FINALIZE
                     return true;
@@ -112,9 +112,9 @@ fflush(stdout);
     {
         double sqNormRes = std::real(__ComplexDotc(n, r, r));
         convRatio = sqrt(sqNormRes * sqInvNormRes0);
-        printf("iter = %d norm: %e\r\n", iter, convRatio);
+        printf("iter = %d norm: %e\n", iter, convRatio);
     }
-    printf("Not converged\r\n");
+    printf("Not converged\n");
 
     __FINALIZE
 #undef __FINALIZE

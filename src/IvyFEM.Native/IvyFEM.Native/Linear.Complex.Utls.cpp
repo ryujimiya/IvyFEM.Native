@@ -144,7 +144,7 @@ static void __ComplexCalcILU(
 				auto LUkkItr = LUIndexValues[k].find(k);
 				if (LUkkItr == LUIndexValues[k].end()) // LU[k, k]
 				{
-					printf("__ComplexCalcILU err divide by zero\r\n");
+					printf("__ComplexCalcILU err divide by zero\n");
 					fflush(stdout);
 					throw;
 				}
@@ -334,7 +334,7 @@ static void __ComplexCalcILUWithPivoting(
                 auto LUkkItr = LUIndexValues[k].find(k);
                 if (LUkkItr == LUIndexValues[k].end())
                 {
-                    printf("__DoubleCalcILUWithPivoting divide by zero\r\n");
+                    printf("__DoubleCalcILUWithPivoting divide by zero\n");
                     fflush(stdout);
                     throw;
                 }
